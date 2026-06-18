@@ -50,8 +50,13 @@ function escapeHTML(str) {
 }
 
 function cardHTML(item) {
+  const thumb = item.videoId ? `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg` : '';
+  const bgStyle = thumb
+    ? `style="background-image: linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(0,0,0,0.85) 100%), url('${thumb}');"`
+    : '';
+
   return `
-    <div class="card">
+    <div class="card" ${bgStyle}>
       <div>
         <div class="card-title">${escapeHTML(item.title)}</div>
         <div class="card-date">${escapeHTML(item.date)}</div>
