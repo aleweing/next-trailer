@@ -30,7 +30,7 @@ async function loadRow(row) {
 
   const enriched = await Promise.all(
     items.slice(0, 5).map(async item => {
-      const { videoId } = await fetchJSON(`/api/youtube?title=${encodeURIComponent(item.title)}`);
+      const { videoId } = await fetchJSON(`/api/youtube?title=${encodeURIComponent(item.originalTitle || item.title)}`);
       return { ...item, videoId };
     })
   );
