@@ -1,5 +1,5 @@
 // Sustituye esto por la URL real de tu Worker en Cloudflare una vez lo despliegues.
-const WORKER_BASE = 'https://next-show-proxy.YOUR-SUBDOMAIN.workers.dev';
+const WORKER_BASE = 'https://next-trailer.alewein.workers.dev';
 
 const state = {
   activeTab: 'movies',
