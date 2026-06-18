@@ -91,7 +91,9 @@ main {
   width: 220px;
   height: 140px;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--card-a), var(--card-b));
+  background-color: var(--card-a);
+  background-size: cover;
+  background-position: center;
   padding: 12px;
   display: flex;
   flex-direction: column;
