@@ -15,26 +15,24 @@
 <body>
   <main>
     <header class="topbar">
-      <div>
-        <h1>Next Show</h1>
-        <p class="subtitle">Cartelera actual y próximos estrenos.</p>
-      </div>
+      <h1>Next Show</h1>
     </header>
 
-    <nav class="tabs" id="tabs">
-      <button class="tab active" data-tab="movies">Películas</button>
-      <button class="tab" data-tab="series">Series</button>
-    </nav>
+    <nav class="segmented" id="segmented"></nav>
 
-    <div id="content"></div>
+    <div id="content" class="grid"></div>
   </main>
 
-  <div class="sheet-overlay" id="sheet-overlay">
-    <div class="sheet">
-      <h2>Todos los recientes</h2>
-      <ul id="sheet-list"></ul>
-    </div>
-  </div>
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="nav-item active" data-media="movies">
+      <span class="nav-icon">🎬</span>
+      <span>Películas</span>
+    </button>
+    <button class="nav-item" data-media="series">
+      <span class="nav-icon">📺</span>
+      <span>Series</span>
+    </button>
+  </nav>
 
   <div class="player-overlay" id="player-overlay">
     <button class="player-close" id="player-close">Cerrar</button>
