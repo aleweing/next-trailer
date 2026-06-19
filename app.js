@@ -6,6 +6,7 @@ const ITEMS_LIMIT = 10;
 const CONFIG = {
   movies: {
     endpoint: '/api/movies',
+    paramName: 'category',
     categories: [
       { id: 'now_playing', label: 'En cartelera' },
       { id: 'upcoming', label: 'Próximos' }
@@ -13,16 +14,30 @@ const CONFIG = {
   },
   series: {
     endpoint: '/api/series',
+    paramName: 'category',
     categories: [
       { id: 'on_the_air', label: 'En emisión' },
       { id: 'upcoming', label: 'Próximos' }
+    ]
+  },
+  streaming: {
+    endpoint: '/api/streaming',
+    paramName: 'provider',
+    categories: [
+      { id: 'netflix', label: 'Netflix' },
+      { id: 'prime', label: 'Prime Video' },
+      { id: 'skyshowtime', label: 'SkyShowtime' },
+      { id: 'max', label: 'Max' },
+      { id: 'disney', label: 'Disney+' },
+      { id: 'appletv', label: 'Apple TV+' },
+      { id: 'movistar', label: 'Movistar Plus+' }
     ]
   }
 };
 
 const state = {
   mediaType: 'movies',
-  category: { movies: 'now_playing', series: 'on_the_air' },
+  category: { movies: 'now_playing', series: 'on_the_air', streaming: 'netflix' },
   cache: {}
 };
 
@@ -32,11 +47,12 @@ async function fetchJSON(path) {
   return res.json();
 }
 
-async function loadList(mediaType, category) {
-  const cacheKey = `${mediaType}-${category}`;
+async function loadList(mediaType, key) {
+  const cacheKey = `${mediaType}-${key}`;
   if (state.cache[cacheKey]) return state.cache[cacheKey];
 
-  const items = await fetchJSON(`${CONFIG[mediaType].endpoint}?category=${category}`);
+  const { endpoint, paramName } = CONFIG[mediaType];
+  const items = await fetchJSON(`${endpoint}?${paramName}=${key}`);
 
   const enriched = await Promise.all(
     items.slice(0, ITEMS_LIMIT).map(async item => {
@@ -94,11 +110,13 @@ async function renderContent() {
   const content = document.getElementById('content');
   content.innerHTML = '<p class="loading">Cargando…</p>';
 
-  const category = state.category[state.mediaType];
+  const key = state.category[state.mediaType];
 
   try {
-    const items = await loadList(state.mediaType, category);
-    content.innerHTML = items.map(posterCardHTML).join('');
+    const items = await loadList(state.mediaType, key);
+    content.innerHTML = items.length
+      ? items.map(posterCardHTML).join('')
+      : '<p class="loading">Sin próximos estrenos confirmados por ahora.</p>';
   } catch {
     content.innerHTML = '<p class="loading">No se pudo cargar. Revisa la URL del Worker.</p>';
   }
