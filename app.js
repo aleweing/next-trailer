@@ -1,20 +1,29 @@
-// Sustituye esto por la URL real de tu Worker en Cloudflare una vez lo despliegues.
+// Sustituye esto por la URL real de tu Worker en Cloudflare.
 const WORKER_BASE = 'https://next-trailer.alewein.workers.dev';
+const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
+const ITEMS_LIMIT = 10;
 
-const state = {
-  activeTab: 'movies',
-  cache: {}
+const CONFIG = {
+  movies: {
+    endpoint: '/api/movies',
+    categories: [
+      { id: 'now_playing', label: 'En cartelera' },
+      { id: 'upcoming', label: 'Próximos' }
+    ]
+  },
+  series: {
+    endpoint: '/api/series',
+    categories: [
+      { id: 'on_the_air', label: 'En emisión' },
+      { id: 'upcoming', label: 'Próximos' }
+    ]
+  }
 };
 
-const ROWS = {
-  movies: [
-    { key: 'movies-now', title: 'En cartelera', endpoint: '/api/movies?category=now_playing' },
-    { key: 'movies-upcoming', title: 'Próximos estrenos', endpoint: '/api/movies?category=upcoming' }
-  ],
-  series: [
-    { key: 'series-air', title: 'En emisión', endpoint: '/api/series?category=on_the_air' },
-    { key: 'series-upcoming', title: 'Próximos estrenos', endpoint: '/api/series?category=upcoming' }
-  ]
+const state = {
+  mediaType: 'movies',
+  category: { movies: 'now_playing', series: 'on_the_air' },
+  cache: {}
 };
 
 async function fetchJSON(path) {
@@ -23,19 +32,22 @@ async function fetchJSON(path) {
   return res.json();
 }
 
-async function loadRow(row) {
-  if (state.cache[row.key]) return state.cache[row.key];
+async function loadList(mediaType, category) {
+  const cacheKey = `${mediaType}-${category}`;
+  if (state.cache[cacheKey]) return state.cache[cacheKey];
 
-  const items = await fetchJSON(row.endpoint);
+  const items = await fetchJSON(`${CONFIG[mediaType].endpoint}?category=${category}`);
 
   const enriched = await Promise.all(
-    items.slice(0, 5).map(async item => {
-      const { videoId } = await fetchJSON(`/api/youtube?title=${encodeURIComponent(item.originalTitle || item.title)}`);
+    items.slice(0, ITEMS_LIMIT).map(async item => {
+      const { videoId } = await fetchJSON(
+        `/api/youtube?title=${encodeURIComponent(item.originalTitle || item.title)}`
+      );
       return { ...item, videoId };
     })
   );
 
-  state.cache[row.key] = enriched;
+  state.cache[cacheKey] = enriched;
   return enriched;
 }
 
@@ -49,46 +61,52 @@ function escapeHTML(str) {
   }[c]));
 }
 
-function cardHTML(item) {
+function posterCardHTML(item) {
+  const bg = item.posterPath
+    ? `background-image: url('${TMDB_IMAGE_BASE}${item.posterPath}');`
+    : '';
+
   return `
-    <div class="card">
-      <div>
-        <div class="card-title">${escapeHTML(item.title)}</div>
-        <div class="card-date">${escapeHTML(item.date)}</div>
+    <div class="poster-card" style="${bg}" data-video="${escapeHTML(item.videoId)}">
+      <div class="poster-play">▶</div>
+      <div class="poster-overlay">
+        <div class="poster-title">${escapeHTML(item.title)}</div>
+        <div class="poster-date">${escapeHTML(item.date)}</div>
       </div>
-      <button class="card-play" data-video="${escapeHTML(item.videoId)}">▶ Ver tráiler</button>
     </div>
   `;
 }
 
-function rowHTML(row) {
-  return `
-    <section class="row" data-row="${row.key}">
-      <div class="row-header">
-        <h2>${escapeHTML(row.title)}</h2>
-        <button class="see-all" data-row="${row.key}">Ver todos</button>
-      </div>
-      <div class="cards" id="cards-${row.key}">
-        <p class="loading">Cargando…</p>
-      </div>
-    </section>
-  `;
+function renderSegmented() {
+  const segmented = document.getElementById('segmented');
+  segmented.innerHTML = CONFIG[state.mediaType].categories
+    .map(
+      cat => `
+        <button class="segment ${cat.id === state.category[state.mediaType] ? 'active' : ''}" data-category="${cat.id}">
+          ${escapeHTML(cat.label)}
+        </button>
+      `
+    )
+    .join('');
 }
 
-async function renderTab(tab) {
+async function renderContent() {
   const content = document.getElementById('content');
-  content.innerHTML = ROWS[tab].map(rowHTML).join('');
+  content.innerHTML = '<p class="loading">Cargando…</p>';
 
-  ROWS[tab].forEach(row => {
-    loadRow(row)
-      .then(items => {
-        document.getElementById(`cards-${row.key}`).innerHTML = items.map(cardHTML).join('');
-      })
-      .catch(() => {
-        document.getElementById(`cards-${row.key}`).innerHTML =
-          '<p class="loading">No se pudo cargar. Revisa la URL del Worker.</p>';
-      });
-  });
+  const category = state.category[state.mediaType];
+
+  try {
+    const items = await loadList(state.mediaType, category);
+    content.innerHTML = items.map(posterCardHTML).join('');
+  } catch {
+    content.innerHTML = '<p class="loading">No se pudo cargar. Revisa la URL del Worker.</p>';
+  }
+}
+
+function render() {
+  renderSegmented();
+  renderContent();
 }
 
 function openPlayer(videoId) {
@@ -102,58 +120,28 @@ function closePlayer() {
   document.getElementById('player-frame').src = '';
 }
 
-function openSheet(rowKey) {
-  const items = state.cache[rowKey] || [];
-  document.getElementById('sheet-list').innerHTML = items
-    .map(
-      item => `
-        <li data-video="${escapeHTML(item.videoId)}">
-          <div class="t">${escapeHTML(item.title)}</div>
-          <div class="d">${escapeHTML(item.date)}</div>
-        </li>
-      `
-    )
-    .join('');
-  document.getElementById('sheet-overlay').classList.add('open');
-}
-
-function closeSheet() {
-  document.getElementById('sheet-overlay').classList.remove('open');
-}
-
 function setupEvents() {
-  document.getElementById('tabs').addEventListener('click', e => {
-    const btn = e.target.closest('.tab');
+  document.getElementById('bottom-nav').addEventListener('click', e => {
+    const btn = e.target.closest('.nav-item');
     if (!btn) return;
 
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    state.activeTab = btn.dataset.tab;
-    renderTab(state.activeTab);
+    state.mediaType = btn.dataset.media;
+    render();
+  });
+
+  document.getElementById('segmented').addEventListener('click', e => {
+    const btn = e.target.closest('.segment');
+    if (!btn) return;
+
+    state.category[state.mediaType] = btn.dataset.category;
+    render();
   });
 
   document.getElementById('content').addEventListener('click', e => {
-    const playBtn = e.target.closest('.card-play');
-    if (playBtn) {
-      openPlayer(playBtn.dataset.video);
-      return;
-    }
-
-    const seeAll = e.target.closest('.see-all');
-    if (seeAll) {
-      openSheet(seeAll.dataset.row);
-    }
-  });
-
-  document.getElementById('sheet-overlay').addEventListener('click', e => {
-    if (e.target.id === 'sheet-overlay') closeSheet();
-  });
-
-  document.getElementById('sheet-list').addEventListener('click', e => {
-    const li = e.target.closest('li');
-    if (!li) return;
-    closeSheet();
-    openPlayer(li.dataset.video);
+    const card = e.target.closest('.poster-card');
+    if (card) openPlayer(card.dataset.video);
   });
 
   document.getElementById('player-close').addEventListener('click', closePlayer);
@@ -166,5 +154,5 @@ function registerServiceWorker() {
 }
 
 setupEvents();
-renderTab(state.activeTab);
+render();
 registerServiceWorker();
