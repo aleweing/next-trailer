@@ -1,6 +1,5 @@
-// Sustituye esto por la URL real de tu Worker en Cloudflare.
-const WORKER_BASE = 'https://next-trailer.alewein.workers.dev';
-const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w780';
+const WORKER_BASE = 'https://next-show-proxy.YOUR-SUBDOMAIN.workers.dev';
+const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
 const ITEMS_LIMIT = 12;
 
 const CONFIG = {
@@ -56,10 +55,14 @@ async function loadList(mediaType, key) {
 
   const enriched = await Promise.all(
     items.slice(0, ITEMS_LIMIT).map(async item => {
-      const { videoId } = await fetchJSON(
-        `/api/youtube?title=${encodeURIComponent(item.originalTitle || item.title)}`
-      );
-      return { ...item, videoId };
+      try {
+        const { videoId } = await fetchJSON(
+          `/api/youtube?title=${encodeURIComponent(item.originalTitle || item.title)}`
+        );
+        return { ...item, videoId };
+      } catch {
+        return { ...item, videoId: null };
+      }
     })
   );
 
@@ -74,32 +77,27 @@ function escapeHTML(str) {
 }
 
 function posterCardHTML(item) {
-  const bg = item.posterPath
-    ? `background-image: url('${TMDB_IMAGE_BASE}${item.posterPath}');`
-    : '';
+  const hasTrailer = !!item.videoId;
+  const img = item.posterPath
+    ? `<img class="poster-img" src="${TMDB_IMAGE_BASE}${item.posterPath}" alt="${escapeHTML(item.title)}" loading="lazy" />`
+    : `<div class="poster-img placeholder">🎬</div>`;
 
   return `
-    <div class="poster-card" style="${bg}" data-video="${escapeHTML(item.videoId)}">
-      <div class="poster-play">▶</div>
-      <div class="poster-overlay">
-        <div class="poster-title">${escapeHTML(item.title)}</div>
-        <div class="poster-date">${escapeHTML(item.date)}</div>
-      </div>
+    <div class="poster-card ${hasTrailer ? '' : 'no-trailer'}" data-video="${escapeHTML(item.videoId)}">
+      ${img}
+      <div class="poster-title">${escapeHTML(item.title)}</div>
+      <div class="poster-date">${escapeHTML(item.date)}</div>
     </div>
   `;
 }
 
 function renderSegmented() {
-  const segmented = document.getElementById('segmented');
-  segmented.innerHTML = CONFIG[state.mediaType].categories
-    .map(
-      cat => `
-        <button class="segment ${cat.id === state.category[state.mediaType] ? 'active' : ''}" data-category="${cat.id}">
-          ${escapeHTML(cat.label)}
-        </button>
-      `
-    )
-    .join('');
+  document.getElementById('segmented').innerHTML = CONFIG[state.mediaType].categories
+    .map(cat => `
+      <button class="segment ${cat.id === state.category[state.mediaType] ? 'active' : ''}" data-category="${cat.id}">
+        ${escapeHTML(cat.label)}
+      </button>
+    `).join('');
 }
 
 async function renderContent() {
@@ -112,7 +110,7 @@ async function renderContent() {
     const items = await loadList(state.mediaType, key);
     content.innerHTML = items.length
       ? items.map(posterCardHTML).join('')
-      : '<p class="loading">Sin próximos estrenos confirmados por ahora.</p>';
+      : '<p class="loading">Sin resultados disponibles ahora.</p>';
   } catch {
     content.innerHTML = '<p class="loading">No se pudo cargar. Revisa la URL del Worker.</p>';
   }
@@ -125,7 +123,7 @@ function render() {
 
 function openPlayer(videoId) {
   if (!videoId) return;
-  document.getElementById('player-frame').src = `https://www.youtube.com/embed/${videoId}`;
+  document.getElementById('player-frame').src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
   document.getElementById('player-overlay').classList.add('open');
 }
 
@@ -138,7 +136,6 @@ function setupEvents() {
   document.getElementById('bottom-nav').addEventListener('click', e => {
     const btn = e.target.closest('.nav-item');
     if (!btn) return;
-
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     state.mediaType = btn.dataset.media;
@@ -148,14 +145,13 @@ function setupEvents() {
   document.getElementById('segmented').addEventListener('click', e => {
     const btn = e.target.closest('.segment');
     if (!btn) return;
-
     state.category[state.mediaType] = btn.dataset.category;
     render();
   });
 
   document.getElementById('content').addEventListener('click', e => {
     const card = e.target.closest('.poster-card');
-    if (card) openPlayer(card.dataset.video);
+    if (card && card.dataset.video) openPlayer(card.dataset.video);
   });
 
   document.getElementById('player-close').addEventListener('click', closePlayer);
