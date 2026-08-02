@@ -8,7 +8,7 @@ const CONFIG = {
     paramName: 'category',
     categories: [
       { id: 'now_playing', label: 'En cartelera' },
-      { id: 'upcoming', label: 'Próximos' }
+      { id: 'upcoming',    label: 'Próximos' }
     ]
   },
   series: {
@@ -16,20 +16,20 @@ const CONFIG = {
     paramName: 'category',
     categories: [
       { id: 'on_the_air', label: 'En emisión' },
-      { id: 'upcoming', label: 'Próximos' }
+      { id: 'upcoming',   label: 'Próximos' }
     ]
   },
   streaming: {
     endpoint: '/api/streaming',
     paramName: 'provider',
     categories: [
-      { id: 'netflix', label: 'Netflix' },
-      { id: 'prime', label: 'Prime Video' },
+      { id: 'netflix',     label: 'Netflix' },
+      { id: 'prime',       label: 'Prime Video' },
       { id: 'skyshowtime', label: 'SkyShowtime' },
-      { id: 'max', label: 'Max' },
-      { id: 'disney', label: 'Disney+' },
-      { id: 'appletv', label: 'Apple TV+' },
-      { id: 'movistar', label: 'Movistar Plus+' }
+      { id: 'max',         label: 'Max' },
+      { id: 'disney',      label: 'Disney+' },
+      { id: 'appletv',     label: 'Apple TV+' },
+      { id: 'movistar',    label: 'Movistar Plus+' }
     ]
   }
 };
@@ -53,21 +53,9 @@ async function loadList(mediaType, key) {
   const { endpoint, paramName } = CONFIG[mediaType];
   const items = await fetchJSON(`${endpoint}?${paramName}=${key}`);
 
-  const enriched = await Promise.all(
-    items.slice(0, ITEMS_LIMIT).map(async item => {
-      try {
-        const { videoId } = await fetchJSON(
-          `/api/youtube?title=${encodeURIComponent(item.originalTitle || item.title)}`
-        );
-        return { ...item, videoId };
-      } catch {
-        return { ...item, videoId: null };
-      }
-    })
-  );
-
-  state.cache[cacheKey] = enriched;
-  return enriched;
+  const result = (Array.isArray(items) ? items : []).slice(0, ITEMS_LIMIT);
+  state.cache[cacheKey] = result;
+  return result;
 }
 
 function escapeHTML(str) {
@@ -77,13 +65,14 @@ function escapeHTML(str) {
 }
 
 function posterCardHTML(item) {
-  const hasTrailer = !!item.videoId;
   const img = item.posterPath
     ? `<img class="poster-img" src="${TMDB_IMAGE_BASE}${item.posterPath}" alt="${escapeHTML(item.title)}" loading="lazy" />`
     : `<div class="poster-img placeholder">🎬</div>`;
 
   return `
-    <div class="poster-card ${hasTrailer ? '' : 'no-trailer'}" data-video="${escapeHTML(item.videoId)}">
+    <div class="poster-card"
+         data-id="${escapeHTML(String(item.id))}"
+         data-original-title="${escapeHTML(item.originalTitle || item.title)}">
       ${img}
       <div class="poster-title">${escapeHTML(item.title)}</div>
       <div class="poster-date">${escapeHTML(item.date)}</div>
@@ -149,9 +138,28 @@ function setupEvents() {
     render();
   });
 
-  document.getElementById('content').addEventListener('click', e => {
+  document.getElementById('content').addEventListener('click', async e => {
     const card = e.target.closest('.poster-card');
-    if (card && card.dataset.video) openPlayer(card.dataset.video);
+    if (!card) return;
+
+    const title = card.dataset.originalTitle;
+    if (!title) return;
+
+    card.style.opacity = '0.5';
+
+    try {
+      const { videoId } = await fetchJSON(
+        `/api/youtube?title=${encodeURIComponent(title)}`
+      );
+      card.style.opacity = '';
+      if (videoId) {
+        openPlayer(videoId);
+      } else {
+        card.style.opacity = '0.4';
+      }
+    } catch {
+      card.style.opacity = '';
+    }
   });
 
   document.getElementById('player-close').addEventListener('click', closePlayer);
