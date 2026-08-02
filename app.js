@@ -1,4 +1,4 @@
-const WORKER_BASE = 'https://next-show-proxy.YOUR-SUBDOMAIN.workers.dev';
+const WORKER_BASE = 'https://next-trailer.alewein.workers.dev';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
 const ITEMS_LIMIT = 12;
 
