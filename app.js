@@ -1,7 +1,7 @@
 // Sustituye esto por la URL real de tu Worker en Cloudflare.
 const WORKER_BASE = 'https://next-trailer.alewein.workers.dev';
-const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
-const ITEMS_LIMIT = 10;
+const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w780';
+const ITEMS_LIMIT = 12;
 
 const CONFIG = {
   movies: {
@@ -69,11 +69,7 @@ async function loadList(mediaType, key) {
 
 function escapeHTML(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
 }
 
