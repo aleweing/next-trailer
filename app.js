@@ -72,6 +72,7 @@ function posterCardHTML(item) {
   return `
     <div class="poster-card"
          data-id="${escapeHTML(String(item.id))}"
+         data-media-type="${escapeHTML(item.mediaType || '')}"
          data-original-title="${escapeHTML(item.originalTitle || item.title)}">
       ${img}
       <div class="poster-title">${escapeHTML(item.title)}</div>
@@ -145,11 +146,16 @@ function setupEvents() {
     const title = card.dataset.originalTitle;
     if (!title) return;
 
+    const mediaType = card.dataset.mediaType;
+    const tmdbId = card.dataset.id;
+
     card.style.opacity = '0.5';
 
     try {
       const { videoId } = await fetchJSON(
         `/api/youtube?title=${encodeURIComponent(title)}`
+        + (mediaType ? `&mediaType=${encodeURIComponent(mediaType)}` : '')
+        + (tmdbId ? `&tmdbId=${encodeURIComponent(tmdbId)}` : '')
       );
       card.style.opacity = '';
       if (videoId) {
