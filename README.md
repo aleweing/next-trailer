@@ -40,3 +40,9 @@ por la URL real que te dio Wrangler.
 
 - Los iconos en `icons/` son un placeholder simple (triángulo de play); sustitúyelos cuando tengas un diseño definitivo, manteniendo los mismos nombres y tamaños (192×192 y 512×512).
 - El nombre "Next Show" es solo una propuesta para seguir tu convención (Next Match, Next Flight, Next Train...); cámbialo en `index.html`, `manifest.json` y aquí si prefieres otro.
+
+## Mi lista y aviso de estreno
+
+- Cada póster tiene una estrella ☆ para guardarlo en **Mi lista** (pestaña ⭐). Se guarda solo en el dispositivo (`localStorage`, clave `next-trailer:watchlist`).
+- Mi lista separa **Por estrenar** y **Ya estrenados** según la fecha del título.
+- En los títulos por estrenar, **⏰ Avísame del estreno** crea una cuenta atrás en [Next Appointment](https://aleweing.github.io/next-appointment/) mediante su enlace `?import=`, y desde ahí se activa el aviso. Si Next Appointment está instalada en el iPhone, hay que usar "Copiar enlace" y pegarlo en «Importar» dentro de la app.

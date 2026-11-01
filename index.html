@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="./manifest.json" />
-  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
@@ -36,7 +36,25 @@
     <span class="nav-icon">📡</span>
     <span>Streaming</span>
   </button>
+  <button class="nav-item" data-media="watchlist">
+    <span class="nav-icon">⭐</span>
+    <span>Mi lista</span>
+  </button>
 </nav>
+
+  <div class="sheet-overlay" id="reminder-sheet">
+    <div class="sheet" role="dialog" aria-labelledby="reminder-heading">
+      <h2 id="reminder-heading">⏰ Avísame del estreno</h2>
+      <p class="sheet-item"><strong id="reminder-title"></strong> · <span id="reminder-date"></span></p>
+      <p class="sheet-hint">Se crea una cuenta atrás en <strong>Next Appointment</strong>, donde puedes activar el aviso para el día del estreno.</p>
+      <a class="sheet-btn primary" id="reminder-open" href="#" target="_blank" rel="noopener">Abrir en Next Appointment</a>
+      <button class="sheet-btn" id="reminder-copy">Copiar enlace</button>
+      <p class="sheet-hint">¿La tienes instalada en el iPhone? Copia el enlace y pégalo en «Importar» dentro de la app.</p>
+      <button class="sheet-btn ghost" id="reminder-close">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
 
   <div class="player-overlay" id="player-overlay">
     <button class="player-close" id="player-close">Cerrar</button>

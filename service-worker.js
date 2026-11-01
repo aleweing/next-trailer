@@ -1,4 +1,4 @@
-const CACHE_NAME = 'next-show-v9';
+const CACHE_NAME = 'next-show-v10';
 const STATIC_ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', event => {

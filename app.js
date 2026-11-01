@@ -2,6 +2,11 @@ const WORKER_BASE = 'https://next-trailer.alewein.workers.dev';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
 const ITEMS_LIMIT = 12;
 
+// "Mi lista": se guarda solo en este dispositivo.
+const WATCHLIST_KEY = 'next-trailer:watchlist';
+// Next Appointment (misma serie Next) crea la cuenta atrás y el aviso del estreno.
+const APPOINTMENT_URL = 'https://aleweing.github.io/next-appointment/';
+
 const CONFIG = {
   movies: {
     endpoint: '/api/movies',
@@ -31,14 +36,86 @@ const CONFIG = {
       { id: 'appletv',     label: 'Apple TV+' },
       { id: 'movistar',    label: 'Movistar Plus+' }
     ]
+  },
+  watchlist: {
+    categories: [
+      { id: 'upcoming', label: 'Por estrenar' },
+      { id: 'released', label: 'Ya estrenados' }
+    ]
   }
 };
 
 const state = {
   mediaType: 'movies',
-  category: { movies: 'now_playing', series: 'on_the_air', streaming: 'netflix' },
-  cache: {}
+  category: { movies: 'now_playing', series: 'on_the_air', streaming: 'netflix', watchlist: 'upcoming' },
+  cache: {},
+  itemsByKey: {} // títulos pintados, para poder guardarlos en Mi lista
 };
+
+// ─── Mi lista ────────────────────────────────────────────────────────────────
+
+function itemKey(item) {
+  return `${item.mediaType || ''}:${item.id}`;
+}
+
+const Watchlist = {
+  load() {
+    try { return JSON.parse(localStorage.getItem(WATCHLIST_KEY)) || []; } catch { return []; }
+  },
+  save(list) {
+    try { localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list)); } catch { /* modo privado */ }
+  },
+  has(key) {
+    return this.load().some(i => itemKey(i) === key);
+  },
+  /** Añade o quita. Devuelve true si queda guardado. */
+  toggle(item) {
+    const list = this.load();
+    const key = itemKey(item);
+    const idx = list.findIndex(i => itemKey(i) === key);
+    if (idx >= 0) {
+      list.splice(idx, 1);
+      this.save(list);
+      return false;
+    }
+    const { id, title, originalTitle, posterPath, date, mediaType } = item;
+    list.push({ id, title, originalTitle, posterPath, date, mediaType, addedAt: Date.now() });
+    this.save(list);
+    return true;
+  }
+};
+
+/** Fecha de estreno en formato YYYY-MM-DD, o null si no se puede interpretar. */
+function releaseISO(date) {
+  if (!date) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  const t = Date.parse(date);
+  return Number.isNaN(t) ? null : new Date(t).toISOString().slice(0, 10);
+}
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Enlace que abre Next Appointment con la cuenta atrás del estreno lista para importar. */
+function appointmentLink(item) {
+  const isSeries = /tv|serie/i.test(item.mediaType || '');
+  const name = `Estreno: ${item.title}`;
+  const payload = {
+    name: name.length > 40 ? name.slice(0, 39) + '…' : name,
+    date: releaseISO(item.date),
+    time: '10:00',
+    emoji: isSeries ? '📺' : '🎬',
+    color: '#ff2d55',
+    category: 'other',
+    recurrenceUnit: 'none',
+    recurrenceInterval: 1
+  };
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  return `${APPOINTMENT_URL}?import=${encodeURIComponent(encoded)}`;
+}
+
 
 async function fetchJSON(path) {
   const res = await fetch(`${WORKER_BASE}${path}`);
@@ -64,7 +141,14 @@ function escapeHTML(str) {
   }[c]));
 }
 
-function posterCardHTML(item) {
+function posterCardHTML(item, { withReminder = false } = {}) {
+  const key = itemKey(item);
+  state.itemsByKey[key] = item;
+  const saved = Watchlist.has(key);
+  const release = releaseISO(item.date);
+  const reminder = withReminder && release && release > todayISO()
+    ? `<button class="remind-btn" data-key="${escapeHTML(key)}">⏰ Avísame del estreno</button>`
+    : '';
   const img = item.posterPath
     ? `<img class="poster-img" src="${TMDB_IMAGE_BASE}${item.posterPath}" alt="${escapeHTML(item.title)}" loading="lazy" />`
     : `<div class="poster-img placeholder">🎬</div>`;
@@ -74,9 +158,14 @@ function posterCardHTML(item) {
          data-id="${escapeHTML(String(item.id))}"
          data-media-type="${escapeHTML(item.mediaType || '')}"
          data-original-title="${escapeHTML(item.originalTitle || item.title)}">
-      ${img}
+      <div class="poster-wrap">
+        ${img}
+        <button class="fav-btn ${saved ? 'saved' : ''}" data-key="${escapeHTML(key)}"
+                aria-label="${saved ? 'Quitar de Mi lista' : 'Guardar en Mi lista'}">${saved ? '★' : '☆'}</button>
+      </div>
       <div class="poster-title">${escapeHTML(item.title)}</div>
       <div class="poster-date">${escapeHTML(item.date)}</div>
+      ${reminder}
     </div>
   `;
 }
@@ -90,8 +179,33 @@ function renderSegmented() {
     `).join('');
 }
 
+function renderWatchlist() {
+  const content = document.getElementById('content');
+  const today = todayISO();
+  const showUpcoming = state.category.watchlist === 'upcoming';
+
+  const items = Watchlist.load()
+    .filter(i => {
+      const d = releaseISO(i.date);
+      const upcoming = !d || d > today; // sin fecha → aún por estrenar
+      return showUpcoming ? upcoming : !upcoming;
+    })
+    .sort((a, b) => (releaseISO(a.date) || '9999').localeCompare(releaseISO(b.date) || '9999')
+      * (showUpcoming ? 1 : -1));
+
+  if (!items.length) {
+    content.innerHTML = Watchlist.load().length
+      ? `<p class="loading">${showUpcoming ? 'Nada pendiente de estreno en tu lista.' : 'Todavía no se ha estrenado nada de tu lista.'}</p>`
+      : '<p class="loading">Toca ☆ en cualquier póster para guardarlo aquí y no perderte su estreno.</p>';
+    return;
+  }
+  content.innerHTML = items.map(i => posterCardHTML(i, { withReminder: true })).join('');
+}
+
 async function renderContent() {
   const content = document.getElementById('content');
+  if (state.mediaType === 'watchlist') return renderWatchlist();
+
   content.innerHTML = '<p class="loading">Cargando…</p>';
 
   const key = state.category[state.mediaType];
@@ -122,6 +236,30 @@ function closePlayer() {
   document.getElementById('player-frame').src = '';
 }
 
+// ─── Aviso de estreno (vía Next Appointment) ────────────────────────────────
+
+function openReminder(item) {
+  const link = appointmentLink(item);
+  document.getElementById('reminder-title').textContent = item.title;
+  document.getElementById('reminder-date').textContent = releaseISO(item.date).split('-').reverse().join('/');
+  document.getElementById('reminder-open').href = link;
+  document.getElementById('reminder-copy').dataset.link = link;
+  document.getElementById('reminder-sheet').classList.add('open');
+}
+
+function closeReminder() {
+  document.getElementById('reminder-sheet').classList.remove('open');
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
 function setupEvents() {
   document.getElementById('bottom-nav').addEventListener('click', e => {
     const btn = e.target.closest('.nav-item');
@@ -140,6 +278,26 @@ function setupEvents() {
   });
 
   document.getElementById('content').addEventListener('click', async e => {
+    const favBtn = e.target.closest('.fav-btn');
+    if (favBtn) {
+      const item = state.itemsByKey[favBtn.dataset.key];
+      if (!item) return;
+      const saved = Watchlist.toggle(item);
+      if (state.mediaType === 'watchlist') return renderWatchlist();
+      favBtn.classList.toggle('saved', saved);
+      favBtn.textContent = saved ? '★' : '☆';
+      favBtn.setAttribute('aria-label', saved ? 'Quitar de Mi lista' : 'Guardar en Mi lista');
+      toast(saved ? 'Guardado en Mi lista' : 'Quitado de Mi lista');
+      return;
+    }
+
+    const remindBtn = e.target.closest('.remind-btn');
+    if (remindBtn) {
+      const item = state.itemsByKey[remindBtn.dataset.key];
+      if (item) openReminder(item);
+      return;
+    }
+
     const card = e.target.closest('.poster-card');
     if (!card) return;
 
@@ -169,6 +327,21 @@ function setupEvents() {
   });
 
   document.getElementById('player-close').addEventListener('click', closePlayer);
+
+  document.getElementById('reminder-close').addEventListener('click', closeReminder);
+  document.getElementById('reminder-sheet').addEventListener('click', e => {
+    if (e.target.id === 'reminder-sheet') closeReminder();
+  });
+  document.getElementById('reminder-open').addEventListener('click', closeReminder);
+  document.getElementById('reminder-copy').addEventListener('click', async e => {
+    try {
+      await navigator.clipboard.writeText(e.currentTarget.dataset.link);
+      toast('Enlace copiado: pégalo en Next Appointment → Importar');
+      closeReminder();
+    } catch {
+      toast('No se pudo copiar el enlace');
+    }
+  });
 }
 
 function registerServiceWorker() {
