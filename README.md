@@ -46,3 +46,41 @@ por la URL real que te dio Wrangler.
 - Cada póster tiene una estrella ☆ para guardarlo en **Mi lista** (pestaña ⭐). Se guarda solo en el dispositivo (`localStorage`, clave `next-trailer:watchlist`).
 - Mi lista separa **Por estrenar** y **Ya estrenados** según la fecha del título.
 - En los títulos por estrenar, **⏰ Avísame del estreno** crea una cuenta atrás en [Next Appointment](https://aleweing.github.io/next-appointment/) mediante su enlace `?import=`, y desde ahí se activa el aviso. Si Next Appointment está instalada en el iPhone, hay que usar "Copiar enlace" y pegarlo en «Importar» dentro de la app.
+
+## Ficha del título y "Dónde verlo"
+
+Al tocar un póster se abre una ficha con **▶ Ver tráiler**, **☆ Guardar**, **⏰ Avísame** (solo si aún no se ha estrenado) y **Dónde verlo**: las plataformas de España donde está el título (suscripción, gratis, alquiler y compra) y, si la película lleva menos de 90 días estrenada, un botón para buscar entradas de cine.
+
+### Activar las plataformas (una vez, en Cloudflare)
+
+La app pide las plataformas a `GET /api/providers?mediaType=movie|tv&id=<id de TMDB>`. Ese endpoint hay que añadirlo al Worker `next-trailer`:
+
+1. Dashboard de Cloudflare → Worker `next-trailer` → **Edit code**.
+2. Pega al final la función `handleProviders` de [`worker/providers-endpoint.js`](worker/providers-endpoint.js).
+3. Añade su ruta junto a las demás, dentro de `fetch()`:
+   ```js
+   if (url.pathname === '/api/providers') return await handleProviders(url, env, cors);
+   ```
+4. **Deploy**. Usa el secret `TMDB_API_KEY` que ya existe.
+
+Mientras el Worker no tenga ese endpoint, la ficha funciona igual y en "Dónde verlo" muestra un enlace de búsqueda en JustWatch.
+
+### Enlaces
+
+TMDB no da enlaces directos a cada plataforma. Netflix, Prime Video / Amazon, Apple TV, Rakuten TV y Google Play abren su buscador con el título; el resto abre la página del título en TMDB, que enlaza a cada plataforma vía JustWatch.
+
+### Afiliación
+
+En `app.js`, constante `AFFILIATE` (vacía por defecto = enlaces normales):
+
+| Campo | Qué es |
+|---|---|
+| `amazonTag` | Tag de Amazon Afiliados (ej. `frontrow-21`). Se añade a los enlaces de Prime Video y Amazon. |
+| `cinemaUrl` | Enlace de entradas de cine con `{title}` donde va el título (ej. enlace de afiliado de Atrápalo vía Awin). Vacío = búsqueda de cartelera en Google. |
+
+Con cualquiera de los dos relleno, la ficha muestra el aviso de enlaces de afiliado.
+
+### Licencia de datos
+
+- La ficha muestra la atribución obligatoria de TMDB y JustWatch. No la quites.
+- La API de TMDB es gratuita solo para uso no comercial: **antes de rellenar `AFFILIATE` hay que pedir a TMDB su licencia comercial.**

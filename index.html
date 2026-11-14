@@ -42,6 +42,27 @@
   </button>
 </nav>
 
+  <div class="sheet-overlay" id="detail-sheet">
+    <div class="sheet" role="dialog" aria-labelledby="detail-title">
+      <div class="detail-head">
+        <div class="detail-poster" id="detail-poster"></div>
+        <div>
+          <h2 id="detail-title"></h2>
+          <p class="sheet-hint" id="detail-meta"></p>
+        </div>
+      </div>
+      <button class="sheet-btn primary" id="detail-trailer">▶ Ver tráiler</button>
+      <div class="detail-row">
+        <button class="sheet-btn" id="detail-fav">☆ Guardar</button>
+        <button class="sheet-btn" id="detail-remind">⏰ Avísame</button>
+      </div>
+      <h3 class="detail-section">Dónde verlo</h3>
+      <div id="detail-providers" class="detail-providers"></div>
+      <p class="sheet-hint attribution">Disponibilidad en España según JustWatch. Este producto usa la API de TMDB, pero no está avalado ni certificado por TMDB.</p>
+      <button class="sheet-btn ghost" id="detail-close">Cerrar</button>
+    </div>
+  </div>
+
   <div class="sheet-overlay" id="reminder-sheet">
     <div class="sheet" role="dialog" aria-labelledby="reminder-heading">
       <h2 id="reminder-heading">⏰ Avísame del estreno</h2>
