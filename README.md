@@ -51,19 +51,19 @@ por la URL real que te dio Wrangler.
 
 Al tocar un póster se abre una ficha con **▶ Ver tráiler**, **☆ Guardar**, **⏰ Avísame** (solo si aún no se ha estrenado) y **Dónde verlo**: las plataformas de España donde está el título (suscripción, gratis, alquiler y compra) y, si la película lleva menos de 90 días estrenada, un botón para buscar entradas de cine.
 
-### Activar las plataformas (una vez, en Cloudflare)
+### El Worker (`worker/worker.js`)
 
-La app pide las plataformas a `GET /api/providers?mediaType=movie|tv&id=<id de TMDB>`. Ese endpoint hay que añadirlo al Worker `next-trailer`:
+El código del Worker `next-trailer` vive ahora en el repo, en [`worker/worker.js`](worker/worker.js). Es la fuente de verdad: si se edita en el dashboard de Cloudflare, hay que traer el cambio de vuelta al repo.
 
-1. Dashboard de Cloudflare → Worker `next-trailer` → **Edit code**.
-2. Pega al final la función `handleProviders` de [`worker/providers-endpoint.js`](worker/providers-endpoint.js).
-3. Añade su ruta junto a las demás, dentro de `fetch()`:
-   ```js
-   if (url.pathname === '/api/providers') return await handleProviders(url, env, cors);
-   ```
-4. **Deploy**. Usa el secret `TMDB_API_KEY` que ya existe.
+Las plataformas salen de `GET /api/providers?mediaType=movie|tv&id=<id de TMDB>`, que responde `{ link, flatrate, free, ads, rent, buy }` con las plataformas de España (cada una `{ id, name, logoPath }`). Usa el mismo secret `TMDB_API_KEY` que el resto y cachea 6 horas.
 
-Mientras el Worker no tenga ese endpoint, la ficha funciona igual y en "Dónde verlo" muestra un enlace de búsqueda en JustWatch.
+Si el endpoint fallara, la ficha sigue funcionando y en "Dónde verlo" muestra un enlace de búsqueda en JustWatch.
+
+**Desplegar un cambio del Worker** (un solo archivo, sin dependencias):
+- Desde el dashboard: Worker `next-trailer` → Edit code → pegar el contenido de `worker/worker.js` → Deploy.
+- Por API: `PUT /accounts/<cuenta>/workers/scripts/next-trailer` con `main_module: "worker.js"` y `keep_bindings: ["secret_text"]` en los metadatos, para conservar `TMDB_API_KEY` y `YOUTUBE_API_KEY`.
+
+**Volver atrás:** dashboard → Worker `next-trailer` → Deployments → elegir la versión anterior → Rollback.
 
 ### Enlaces
 
