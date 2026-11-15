@@ -136,7 +136,7 @@ main {
   background: #000;
   display: none;
   flex-direction: column;
-  z-index: 50;
+  z-index: 80; /* por encima de la ficha del título */
 }
 
 .player-overlay.open { display: flex; }
@@ -168,3 +168,162 @@ main {
   aspect-ratio: 16 / 9;
   border: none;
 }
+
+/* ── Mi lista ─────────────────────────────────────────── */
+.poster-wrap { position: relative; }
+
+.fav-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.fav-btn.saved { color: #ffd60a; }
+
+.remind-btn {
+  margin-top: 6px;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 60;
+}
+
+.sheet-overlay.open { display: flex; }
+
+.sheet {
+  width: 100%;
+  max-width: 520px;
+  background: #1c1c1f;
+  border-radius: 18px 18px 0 0;
+  padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sheet h2 { font-size: 17px; margin: 0; }
+.sheet-item { margin: 0; font-size: 14px; }
+.sheet-hint { margin: 0; font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.45; }
+
+.sheet-btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  padding: 13px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.sheet-btn.primary { background: var(--accent); color: #fff; }
+.sheet-btn.ghost { background: transparent; color: rgba(255,255,255,0.55); }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(40,40,44,0.95);
+  color: var(--text);
+  font-size: 13px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 70;
+  max-width: calc(100% - 32px);
+  text-align: center;
+}
+
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Ficha del título ─────────────────────────────────── */
+.sheet { max-height: 92dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+.detail-head { display: flex; gap: 12px; align-items: center; }
+
+.detail-poster { flex: 0 0 64px; }
+
+.detail-poster img,
+.detail-poster .placeholder {
+  width: 64px;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  background: #2a2a2e;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.detail-head h2 { font-size: 18px; line-height: 1.25; margin: 0 0 4px; }
+
+.detail-row { display: flex; gap: 10px; }
+.detail-row .sheet-btn { flex: 1; }
+.detail-row .sheet-btn[hidden] { display: none; }
+
+.sheet-btn:disabled { opacity: 0.5; }
+.sheet-btn.saved { color: #ffd60a; }
+
+.detail-section {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.55);
+  margin: 6px 0 0;
+}
+
+.detail-providers { display: flex; flex-direction: column; gap: 10px; }
+
+.provider-label { font-size: 12px; color: rgba(255,255,255,0.55); margin-bottom: 6px; }
+
+.provider-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.provider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  min-height: 44px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.provider img { width: 32px; height: 32px; border-radius: 8px; display: block; }
+.provider span { padding-left: 2px; }
+
+.attribution { font-size: 11px; }
