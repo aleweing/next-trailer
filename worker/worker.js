@@ -79,6 +79,7 @@ export default {
       if (url.pathname === '/api/series')    return await handleSeries(url, env, cors);
       if (url.pathname === '/api/streaming') return await handleStreaming(url, env, cors);
       if (url.pathname === '/api/youtube')   return await handleYoutube(url, env, cors);
+      if (url.pathname === '/api/providers') return await handleProviders(url, env, cors);
 
       return new Response('Not found', { status: 404, headers: cors });
     } catch (err) {
@@ -384,4 +385,47 @@ async function handleYoutube(url, env, cors) {
   }
 
   return json({ videoId: videoId3 }, cors);
+}
+
+// "Dónde verlo": GET /api/providers?mediaType=movie|tv&id=<id de TMDB>
+// Responde { link, flatrate, free, ads, rent, buy } con las plataformas de
+// España; cada una es { id, name, logoPath }. Sin disponibilidad, las listas
+// llegan vacías y link es null. La disponibilidad viene de JustWatch a través
+// de TMDB: hay que mostrar su atribución (la app ya lo hace en la ficha).
+async function handleProviders(url, env, cors) {
+  const headers = { ...cors, 'Content-Type': 'application/json' };
+  const mediaType = url.searchParams.get('mediaType') === 'tv' ? 'tv' : 'movie';
+  const id = url.searchParams.get('id') || '';
+
+  if (!/^\d+$/.test(id)) {
+    return new Response(JSON.stringify({ error: 'Missing or invalid id' }), { status: 400, headers });
+  }
+
+  const res = await fetch(`https://api.themoviedb.org/3/${mediaType}/${id}/watch/providers`, {
+    headers: { Authorization: `Bearer ${env.TMDB_API_KEY}` }
+  });
+  if (!res.ok) {
+    return new Response(JSON.stringify({ error: 'TMDB request failed' }), { status: 502, headers });
+  }
+
+  const data = await res.json();
+  const es = (data.results && data.results.ES) || {};
+  const pick = list => (list || [])
+    .slice()
+    .sort((a, b) => (a.display_priority ?? 999) - (b.display_priority ?? 999))
+    .map(p => ({ id: p.provider_id, name: p.provider_name, logoPath: p.logo_path || null }));
+
+  const body = {
+    link: es.link || null,
+    flatrate: pick(es.flatrate),
+    free: pick(es.free),
+    ads: pick(es.ads),
+    rent: pick(es.rent),
+    buy: pick(es.buy)
+  };
+
+  // La disponibilidad cambia poco: 6 h de caché ahorran llamadas a TMDB.
+  return new Response(JSON.stringify(body), {
+    headers: { ...headers, 'Cache-Control': 'public, max-age=21600' }
+  });
 }

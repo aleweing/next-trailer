@@ -315,7 +315,14 @@ function providersHTML(item, data) {
   let usesAffiliate = false;
 
   for (const [label, list] of groups) {
-    const unique = (list || []).filter(p => p && p.name);
+    // TMDB lista aparte los planes con anuncios ("Netflix Standard with Ads"):
+    // si ya sale la plataforma base en el grupo, la variante sobra.
+    const named = (list || [])
+      .filter(p => p && p.name && p.name.trim())
+      .map(p => ({ ...p, name: p.name.trim() }));
+    const baseName = n => n.replace(/\s+(standard|basic)?\s*with ads$/i, '').toLowerCase();
+    const unique = named.filter((p, i) =>
+      named.findIndex(o => baseName(o.name) === baseName(p.name)) === i);
     if (!unique.length) continue;
     html += `<div class="provider-group"><div class="provider-label">${escapeHTML(label)}</div><div class="provider-list">`;
     for (const p of unique) {
